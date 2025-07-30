@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <thread>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -9,10 +10,23 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
+void recieve_msg(int client_fd) {
+    char buffer[BUFFER_SIZE] = {0};
+
+    while (true) {
+        ssize_t bytes_recv = recv(client_fd, buffer, sizeof(BUFFER_SIZE)-1, 0);
+
+        if (bytes_recv <= 0) {
+            std::cerr << "Disconnected to the server" << std::endl;
+            break;
+        }
+    }
+}
+
 int main() {
     int client_fd;
     int opt = 1;
-
+    std::string msg;
 
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -30,29 +44,25 @@ int main() {
         close(client_fd);
         exit(1);
     }
-
-    if (bind(client_fd, (struct sockaddr*)&caddr, sizeof(caddr)) < 0) {
-        std::cerr << "Binding failed" << std::endl;
-        close(client_fd);
-        exit(1);
-    }
-
+    
     if (connect(client_fd, (struct sockaddr*)&caddr, sizeof(caddr)) < 0) {
         std::cerr << "Connection failed" << std::endl;
         close(client_fd);
         exit(1);
     }
-
-    std::string cname;
-    std::cout << "Register your Name: ";
-    std::getline(std::cin >> std::ws, cname);
     
-    while (true) {
-        char buffer[BUFFER_SIZE] = {0};
+    std::thread reciever(recieve_msg, client_fd);
+    reciever.detach();
 
-        std::string msg;
-        std::cout << cname << ": ";
+    while (true) {
+
+        std::cout << "[Message]: ";
         std::getline(std::cin, msg);
+
+        if (msg == "quit" || msg == "exit") {
+            return false;
+            break;
+        }
 
         ssize_t bytes_sent = send(client_fd, msg.c_str(), msg.size(), 0);
 
@@ -61,14 +71,6 @@ int main() {
             break;        
         }
 
-        ssize_t bytes_recv = recv(client_fd, buffer, BUFFER_SIZE, 0);
-
-        if (bytes_recv < 0) {
-            std::cerr << "cant recieve the message" << std::endl;
-            break;
-        }
-
-        buffer[bytes_recv] = '\0';
     }
 
     close (client_fd);
