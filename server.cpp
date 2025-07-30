@@ -23,9 +23,9 @@
 int main() {
     int sock, n_sock;
     int opt = 1;
-    int addrlen = sizeof(saddr);
     // declaring the sockaddr_in for making a port ---its basically a port that you can set;
     sockaddr_in saddr;
+    int addrlen = sizeof(saddr);
     char buffer[BUFFER_SIZE] = {0};
 
     // this is the socket i have created
@@ -84,7 +84,7 @@ int main() {
     std::cout << "Response sent\n";
 
     // then close the sockets
-    close (n_sock)
+    close (n_sock);
     close (sock);
 
     return 0;
