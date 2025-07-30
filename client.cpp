@@ -1,83 +1,76 @@
-/* Client side Programming 
-    This is For Educational purposes only 
-            NETWORK PROGRAMMING (TCP)
-    -to learn or understand how the networking program function
-
-
-*/
 #include <iostream>
-// tipical networking libraries
+#include <string>
 #include <cstring>
-#include <unistd.h>
+#include <sys/socket.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <netinet/in.h>
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
 int main() {
-    int sock;
+    int client_fd;
     int opt = 1;
-    char buffer[BUFFER_SIZE] = {0}; // all elements zero -initalized
 
 
-    //create a socket
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    //check if the creation of the socket is successful
-    if (sock < 0){
-        std::cerr << "Socket Creation failed!" << std::endl;
-        exit(1);
+    client_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (client_fd < 0) {
+        std::cerr << "Socket Failed" << std::endl;
     }
-    // set a socket option
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
 
-    // Set the value of the port and the port address
-    sockaddr_in saddr;
-    int addrlen = sizeof(saddr);
-    memset(&saddr, 0, sizeof(saddr));
-    saddr.sin_family = AF_INET;
-    saddr.sin_port = htons(PORT);
-    // check if the inet_pton is working
-    if (inet_pton(AF_INET, "127.0.0.1", &saddr.sin_addr) < 0) {
-        std::cerr << "Invalid address / Address not supported" << std::endl;
+    setsockopt(client_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
+
+    sockaddr_in caddr;
+    caddr.sin_family = AF_INET;
+    caddr.sin_port = htons(PORT);
+    if (inet_pton(AF_INET, "127.0.0.1", &caddr.sin_addr) < 0) {
+        std::cerr << "Address Failed / Not Supported" << std::endl;
+        close(client_fd);
         exit(1);
     }
 
-    // stablish a connection to a listening sever
-    if (connect(sock, (struct sockaddr*)&saddr, sizeof(saddr)) < 0){
-        std::cerr << "Connection Failed" << std::endl;
-        close(sock);
+    if (bind(client_fd, (struct sockaddr*)&caddr, sizeof(caddr)) < 0) {
+        std::cerr << "Binding failed" << std::endl;
+        close(client_fd);
         exit(1);
     }
 
-    //std::cout << "Client connected to a server" << std::endl;
-
-    //send messege
-
-    const char* hello = "Hello from client";
-    ssize_t bytes_sent = send(sock, hello, strlen(hello), 0);
-
-    if (bytes_sent < 0) {
-        std::cerr << "Failed to send messege" << std::endl;
-        close(sock);   
+    if (connect(client_fd, (struct sockaddr*)&caddr, sizeof(caddr)) < 0) {
+        std::cerr << "Connection failed" << std::endl;
+        close(client_fd);
         exit(1);
     }
 
-    std::cout << "Message sent: " << std::endl;
-
-    // recieve response
-    ssize_t smsg = recv(sock, buffer, BUFFER_SIZE, 0);
-
-    if (smsg < 0) {
-        std::cerr << "Recieve Failed" << std::endl;
-        close(sock);
-        exit(1);
-    }
+    std::string cname;
+    std::cout << "Register your Name: ";
+    std::getline(std::cin >> std::ws, cname);
     
-    buffer[smsg] = '\0';
-    std::cout << "Recieved: " << buffer << std::endl;
+    while (true) {
+        char buffer[BUFFER_SIZE] = {0};
 
+        std::string msg;
+        std::cout << cname << ": ";
+        std::getline(std::cin, msg);
 
-    close(sock);
+        ssize_t bytes_sent = send(client_fd, msg.c_str(), msg.size(), 0);
+
+        if (bytes_sent < 0) {
+            std::cerr << "cant send a messege to the server" << std::endl;
+            break;        
+        }
+
+        ssize_t bytes_recv = recv(client_fd, buffer, BUFFER_SIZE, 0);
+
+        if (bytes_recv < 0) {
+            std::cerr << "cant recieve the message" << std::endl;
+            break;
+        }
+
+        buffer[bytes_recv] = '\0';
+    }
+
+    close (client_fd);
     return 0;
 }
